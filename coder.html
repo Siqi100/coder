@@ -1,0 +1,1100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Code Studio Ultra Pro</title>
+  <!-- Tailwind CSS CDN for modern, responsive UI styling -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icons for crisp UI icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Inter:wght@400;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #0f1117;
+      color: #e2e8f0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    .font-code {
+      font-family: 'Fira Code', monospace;
+    }
+
+    /* Custom Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #181b24;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+
+    /* Glow & Animation Utilities */
+    .glow-save-btn {
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+      animation: pulse-glow 2s infinite;
+    }
+    .unsaved-glow {
+      box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+      animation: alert-pulse 1.5s infinite;
+    }
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 12px rgba(34, 197, 94, 0.4); }
+      50% { box-shadow: 0 0 22px rgba(34, 197, 94, 0.8); }
+    }
+    @keyframes alert-pulse {
+      0%, 100% { box-shadow: 0 0 10px rgba(234, 179, 8, 0.4); }
+      50% { box-shadow: 0 0 22px rgba(234, 179, 8, 0.9); }
+    }
+
+    /* File Card Styles */
+    .file-card {
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    .file-card:hover {
+      transform: translateY(-1px);
+      border-color: #3b82f6;
+    }
+    .file-card.active {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.12);
+    }
+
+    /* Smooth Drag Overlay */
+    .drop-active {
+      border: 2px dashed #3b82f6 !important;
+      background: rgba(59, 130, 246, 0.08) !important;
+    }
+
+    /* Toast Notification Animation */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 9999;
+    }
+    .toast {
+      animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body class="flex flex-col h-screen select-none">
+
+  <!-- STUDIO HEADER TOOLBAR -->
+  <header class="bg-slate-900 border-b border-slate-800 px-4 py-2.5 flex items-center justify-between z-20">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 px-3 py-1.5 rounded-lg text-white font-extrabold text-sm tracking-wide shadow-lg">
+        <i class="fa-solid font-bold fa-gamepad text-lg"></i>
+        <span>GAME STUDIO <span class="text-amber-300 font-black">ULTRA PRO</span></span>
+      </div>
+      <span id="active-file-badge" class="bg-slate-800 text-slate-300 text-xs px-2.5 py-1 rounded-md font-mono border border-slate-700 flex items-center gap-2">
+        <i class="fa-regular fa-file-code text-indigo-400"></i>
+        <span id="active-file-title">No File Selected</span>
+      </span>
+      <span id="save-status-badge" class="bg-emerald-500/10 text-emerald-400 text-xs px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+        <i class="fa-solid fa-check text-[10px]"></i> Saved
+      </span>
+    </div>
+
+    <!-- View Mode Selector -->
+    <div class="flex items-center bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs">
+      <button id="view-split" onclick="setViewMode('split')" class="px-3 py-1.5 rounded-md font-semibold text-white bg-indigo-600 transition flex items-center gap-1.5">
+        <i class="fa-solid fa-columns"></i> Split View
+      </button>
+      <button id="view-code" onclick="setViewMode('code')" class="px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+        <i class="fa-solid fa-code"></i> Full Code
+      </button>
+      <button id="view-preview" onclick="setViewMode('preview')" class="px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5">
+        <i class="fa-solid fa-play"></i> Huge Preview
+      </button>
+    </div>
+
+    <!-- Quick Action Buttons -->
+    <div class="flex items-center gap-3">
+      <!-- Preset Games Dropdown -->
+      <select id="preset-selector" onchange="loadPresetGame(this.value)" class="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs px-3 py-2 rounded-lg border border-slate-700 outline-none cursor-pointer font-medium transition">
+        <option value="">🎮 -- Load Starter Mini-Game --</option>
+        <option value="canvas_painter">🎨 Super Canvas Painter Deluxe</option>
+        <option value="space_defender">🚀 Space Defender Arcade</option>
+        <option value="snake_game">🐍 Classic Snake Game</option>
+        <option value="flappy_square">🐣 Flappy Square Physics</option>
+        <option value="brick_breaker">🧱 Brick Breaker Arcade</option>
+        <option value="target_clicker">🎯 Target Clicker Turbo</option>
+        <option value="synth_keyboard">🎹 Synth Sound Synthesizer</option>
+        <option value="particle_sandbox">🌀 Particle Physics Sandbox</option>
+      </select>
+
+      <!-- YES SAVE BUTTON -->
+      <button id="save-btn" onclick="saveActiveFile()" class="glow-save-btn bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-lg flex items-center gap-2 transition cursor-pointer">
+        <i class="fa-solid fa-floppy-disk text-sm"></i>
+        <span>YES SAVE</span>
+      </button>
+
+      <!-- Export Button -->
+      <button onclick="exportCurrentFile()" class="bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition cursor-pointer">
+        <i class="fa-solid fa-download"></i>
+        <span>Export .HTML</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE LAYOUT -->
+  <div class="flex-1 flex overflow-hidden">
+    
+    <!-- SIDEBAR PANEL -->
+    <aside id="sidebar" class="w-72 bg-slate-900 border-r border-slate-800 flex flex-col p-3 gap-4 shrink-0 overflow-y-auto">
+      
+      <!-- New File Button -->
+      <button onclick="createNewFile()" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs py-2.5 px-3 rounded-lg flex items-center justify-center gap-2 shadow-md transition cursor-pointer">
+        <i class="fa-solid fa-plus-circle text-base"></i>
+        <span>CREATE NEW GAME FILE</span>
+      </button>
+
+      <!-- File Manager List -->
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1">
+          <span>📁 Saved Games List</span>
+          <span id="file-count-tag" class="text-indigo-400">0 Files</span>
+        </div>
+        <div id="file-list" class="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+          <!-- Dynamic File Cards Injected Here -->
+        </div>
+      </div>
+
+      <!-- Color Palette Tool ("All Colors in the World") -->
+      <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+          <span class="flex items-center gap-1.5 text-amber-400">
+            <i class="fa-solid fa-palette"></i> Color Picker Studio
+          </span>
+          <span class="text-[10px] text-slate-500">Click to Copy</span>
+        </div>
+
+        <div class="flex items-center gap-2 bg-slate-900 p-2 rounded-lg border border-slate-800">
+          <input type="color" id="studio-color-picker" value="#3b82f6" oninput="updateColorPickerHex(this.value)" class="w-8 h-8 rounded border-0 cursor-pointer bg-transparent">
+          <input type="text" id="color-hex-text" value="#3b82f6" readonly class="bg-slate-950 text-emerald-400 text-xs font-mono px-2 py-1 rounded w-full border border-slate-800 outline-none">
+          <button onclick="insertColorToEditor()" title="Insert Color Code Into Editor" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs p-1.5 rounded transition">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i>
+          </button>
+        </div>
+
+        <!-- Preset Palette Swatches -->
+        <div class="grid grid-cols-6 gap-1.5">
+          <button onclick="selectPresetColor('#ff0055')" class="h-6 rounded-md bg-[#ff0055] hover:scale-110 transition shadow" title="Neon Pink"></button>
+          <button onclick="selectPresetColor('#00f0ff')" class="h-6 rounded-md bg-[#00f0ff] hover:scale-110 transition shadow" title="Cyber Cyan"></button>
+          <button onclick="selectPresetColor('#ffb703')" class="h-6 rounded-md bg-[#ffb703] hover:scale-110 transition shadow" title="Arcade Gold"></button>
+          <button onclick="selectPresetColor('#00f5d4')" class="h-6 rounded-md bg-[#00f5d4] hover:scale-110 transition shadow" title="Emerald Mint"></button>
+          <button onclick="selectPresetColor('#7b2cbf')" class="h-6 rounded-md bg-[#7b2cbf] hover:scale-110 transition shadow" title="Electric Purple"></button>
+          <button onclick="selectPresetColor('#ff5722')" class="h-6 rounded-md bg-[#ff5722] hover:scale-110 transition shadow" title="Vibrant Orange"></button>
+          <button onclick="selectPresetColor('#ffffff')" class="h-6 rounded-md bg-white hover:scale-110 transition shadow" title="Pure White"></button>
+          <button onclick="selectPresetColor('#1a1a2e')" class="h-6 rounded-md bg-[#1a1a2e] border border-slate-700 hover:scale-110 transition shadow" title="Dark Slate"></button>
+          <button onclick="selectPresetColor('#ccff00')" class="h-6 rounded-md bg-[#ccff00] hover:scale-110 transition shadow" title="Lime Spark"></button>
+          <button onclick="selectPresetColor('#ff00ff')" class="h-6 rounded-md bg-[#ff00ff] hover:scale-110 transition shadow" title="Magenta"></button>
+          <button onclick="selectPresetColor('#3a86ff')" class="h-6 rounded-md bg-[#3a86ff] hover:scale-110 transition shadow" title="Royal Blue"></button>
+          <button onclick="selectPresetColor('#ffb5a7')" class="h-6 rounded-md bg-[#ffb5a7] hover:scale-110 transition shadow" title="Peach Soft"></button>
+        </div>
+      </div>
+
+      <!-- Quick Code Snippets Palette -->
+      <div class="flex flex-col gap-2">
+        <div class="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-1 flex items-center justify-between">
+          <span class="flex items-center gap-1.5 text-cyan-400">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Code Snippet Injector
+          </span>
+        </div>
+        <div class="grid grid-cols-1 gap-1.5">
+          <button onclick="injectSnippet('score')" class="text-left bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white p-2 rounded-lg text-xs transition flex items-center gap-2">
+            <span class="bg-amber-500/20 text-amber-400 p-1 rounded"><i class="fa-solid fa-trophy"></i></span>
+            <div>
+              <div class="font-semibold">Score & HighScore</div>
+              <div class="text-[10px] text-slate-500">Adds score tracker logic</div>
+            </div>
+          </button>
+          <button onclick="injectSnippet('timer')" class="text-left bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white p-2 rounded-lg text-xs transition flex items-center gap-2">
+            <span class="bg-blue-500/20 text-blue-400 p-1 rounded"><i class="fa-solid fa-stopwatch"></i></span>
+            <div>
+              <div class="font-semibold">Game Countdown Timer</div>
+              <div class="text-[10px] text-slate-500">Adds 30s timer loop</div>
+            </div>
+          </button>
+          <button onclick="injectSnippet('sound')" class="text-left bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white p-2 rounded-lg text-xs transition flex items-center gap-2">
+            <span class="bg-emerald-500/20 text-emerald-400 p-1 rounded"><i class="fa-solid fa-volume-high"></i></span>
+            <div>
+              <div class="font-semibold">Arcade Beep Synth</div>
+              <div class="text-[10px] text-slate-500">Web Audio API sound effect</div>
+            </div>
+          </button>
+          <button onclick="injectSnippet('rainbowBg')" class="text-left bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white p-2 rounded-lg text-xs transition flex items-center gap-2">
+            <span class="bg-purple-500/20 text-purple-400 p-1 rounded"><i class="fa-solid fa-rainbow"></i></span>
+            <div>
+              <div class="font-semibold">Rainbow Animated BG</div>
+              <div class="text-[10px] text-slate-500">Vibrant CSS gradient animation</div>
+            </div>
+          </button>
+          <button onclick="injectSnippet('touchPad')" class="text-left bg-slate-950 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white p-2 rounded-lg text-xs transition flex items-center gap-2">
+            <span class="bg-rose-500/20 text-rose-400 p-1 rounded"><i class="fa-solid fa-gamepad"></i></span>
+            <div>
+              <div class="font-semibold">Touch D-Pad Buttons</div>
+              <div class="text-[10px] text-slate-500">On-screen arrow controls</div>
+            </div>
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- CODE EDITOR PANEL -->
+    <section id="editor-panel" class="flex-1 bg-slate-950 flex flex-col border-r border-slate-800 relative transition-all duration-300">
+      <div class="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <span class="font-bold flex items-center gap-2 text-indigo-400">
+          <i class="fa-solid fa-code"></i> HTML / JavaScript Editor
+        </span>
+        <div class="flex items-center gap-3">
+          <span id="editor-line-count" class="font-mono text-[11px]">Lines: 0</span>
+          <button onclick="clearEditorCode()" class="hover:text-rose-400 transition" title="Clear Code">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Code Editor Textarea -->
+      <textarea id="code-editor" spellcheck="false" placeholder="Drag or select a game file on the left sidebar to start editing code..." class="w-full flex-1 bg-[#12151e] text-slate-200 font-code text-xs p-4 outline-none resize-none leading-relaxed border-0 focus:ring-0"></textarea>
+    </section>
+
+    <!-- LIVE GAME PREVIEW PANEL -->
+    <section id="preview-panel" class="flex-1 bg-slate-900 flex flex-col relative transition-all duration-300">
+      <div class="bg-slate-900/90 px-3 py-1.5 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <span class="font-bold flex items-center gap-2 text-emerald-400">
+          <i class="fa-solid fa-display"></i> Live Game Canvas & Display
+        </span>
+        <div class="flex items-center gap-2">
+          <button onclick="reloadPreviewFrame()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-2 py-0.5 rounded text-[11px] transition flex items-center gap-1">
+            <i class="fa-solid fa-rotate-right"></i> Restart Game
+          </button>
+        </div>
+      </div>
+
+      <!-- Drop Target Dropzone Frame -->
+      <div id="drop-overlay" class="absolute inset-0 z-10 pointer-events-none hidden flex items-center justify-center bg-blue-600/20 backdrop-blur-sm border-2 border-dashed border-blue-400">
+        <div class="bg-slate-900 text-blue-400 font-bold px-6 py-3 rounded-xl border border-blue-500 shadow-2xl flex items-center gap-3 text-sm">
+          <i class="fa-solid fa-file-import text-xl animate-bounce"></i> Drop File Here to Load Code!
+        </div>
+      </div>
+
+      <!-- Live Game Iframe -->
+      <iframe id="preview-frame" class="w-full flex-1 bg-white border-0"></iframe>
+    </section>
+
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <script>
+    /* STUDIO STATE & PRESET GAMES */
+    let currentActiveFile = null;
+    let fileCounter = 1;
+    let hasUnsavedChanges = false;
+    let gameFiles = {};
+
+    // Built-in Starter Mini-Games
+    const gameTemplates = {
+      // 🎨 SUPER CANVAS PAINTER DELUXE
+      canvas_painter: `<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: sans-serif; }
+    body { background: #111; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    #toolbar { background: #222; padding: 10px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; border-bottom: 2px solid #333; }
+    button, input, select { padding: 8px 12px; background: #333; color: white; border: 1px solid #555; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #444; }
+    #canvas-container { flex: 1; position: relative; width: 100%; height: 100%; cursor: crosshair; }
+    canvas { display: block; background: #ffffff; width: 100%; height: 100%; }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <span>🎨 Color:</span>
+    <input type="color" id="colorPicker" value="#ff0055">
+    <span>Size:</span>
+    <input type="range" id="brushSize" min="2" max="60" value="12">
+    <button id="rainbowBtn" onclick="toggleRainbow()">🌈 Rainbow Mode: OFF</button>
+    <button onclick="setEraser()">🧹 Eraser</button>
+    <button onclick="clearCanvas()" style="background:#d32f2f;">💥 Clear All</button>
+  </div>
+  <div id="canvas-container">
+    <canvas id="paintCanvas"></canvas>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('paintCanvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    let isRainbow = false;
+    let isEraser = false;
+    let hue = 0;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight - document.getElementById('toolbar').offsetHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    function startDraw(e) {
+      drawing = true;
+      draw(e);
+    }
+    function stopDraw() {
+      drawing = false;
+      ctx.beginPath();
+    }
+    function draw(e) {
+      if(!drawing) return;
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+      const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top;
+
+      ctx.lineWidth = document.getElementById('brushSize').value;
+      ctx.lineCap = 'round';
+
+      if(isEraser) {
+        ctx.strokeStyle = '#ffffff';
+      } else if(isRainbow) {
+        ctx.strokeStyle = 'hsl(' + hue + ', 100%, 50%)';
+        hue = (hue + 4) % 360;
+      } else {
+        ctx.strokeStyle = document.getElementById('colorPicker').value;
+      }
+
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+    }
+
+    function toggleRainbow() {
+      isRainbow = !isRainbow;
+      isEraser = false;
+      document.getElementById('rainbowBtn').innerText = isRainbow ? "🌈 Rainbow Mode: ON" : "🌈 Rainbow Mode: OFF";
+    }
+    function setEraser() {
+      isEraser = true;
+      isRainbow = false;
+      document.getElementById('rainbowBtn').innerText = "🌈 Rainbow Mode: OFF";
+    }
+    function clearCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    canvas.addEventListener('mousedown', startDraw);
+    canvas.addEventListener('mouseup', stopDraw);
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('touchstart', startDraw);
+    canvas.addEventListener('touchend', stopDraw);
+    canvas.addEventListener('touchmove', draw);
+  <\/script>
+</body>
+</html>`,
+
+      // 🚀 SPACE DEFENDER ARCADE
+      space_defender: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin:0; background:#000; color:#fff; font-family:sans-serif; text-align:center; overflow:hidden; }
+    canvas { background:#050515; display:block; margin:0 auto; }
+    #ui { position:absolute; top:10px; left:50%; transform:translateX(-50%); font-size:18px; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <div id="ui">🚀 Score: <span id="s">0</span></div>
+  <canvas id="c"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let score = 0;
+    let player = { x: canvas.width/2, y: canvas.height - 60, w: 40, h: 40 };
+    let bullets = [];
+    let enemies = [];
+
+    function spawnEnemy() {
+      enemies.push({ x: Math.random() * (canvas.width - 30), y: -30, speed: 2 + Math.random()*3 });
+    }
+    setInterval(spawnEnemy, 800);
+
+    window.onmousemove = (e) => { player.x = e.clientX - player.w/2; };
+    window.onclick = () => { bullets.push({ x: player.x + player.w/2 - 3, y: player.y, w: 6, h: 15 }); };
+
+    function loop() {
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      
+      // Draw Player Ship
+      ctx.fillStyle = '#00f0ff';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+
+      // Bullets
+      ctx.fillStyle = '#ff0055';
+      bullets.forEach((b, i) => {
+        b.y -= 8;
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        if(b.y < 0) bullets.splice(i, 1);
+      });
+
+      // Enemies
+      ctx.fillStyle = '#ffb703';
+      enemies.forEach((e, ei) => {
+        e.y += e.speed;
+        ctx.fillRect(e.x, e.y, 30, 30);
+
+        // Check collision with bullets
+        bullets.forEach((b, bi) => {
+          if(b.x < e.x + 30 && b.x + b.w > e.x && b.y < e.y + 30 && b.y + b.h > e.y) {
+            enemies.splice(ei, 1);
+            bullets.splice(bi, 1);
+            score += 10;
+            document.getElementById('s').innerText = score;
+          }
+        });
+      });
+
+      requestAnimationFrame(loop);
+    }
+    loop();
+  <\/script>
+</body>
+</html>`,
+
+      // 🐍 CLASSIC SNAKE GAME
+      snake_game: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background:#111827; color:#fff; font-family:sans-serif; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; margin:0; }
+    canvas { border:4px solid #10b981; background:#000; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h2>🐍 Snake Score: <span id="score">0</span></h2>
+  <canvas id="gc" width="300" height="300"></canvas>
+  <p>Use Keyboard Arrow Keys to Move!</p>
+  <script>
+    const canvas = document.getElementById('gc');
+    const ctx = canvas.getContext('2d');
+    let px=10, py=10, gs=15, tc=20, ax=15, ay=15, xv=0, yv=0, trail=[], tail=5, score=0;
+
+    window.onload = () => {
+      document.addEventListener('keydown', keyPush);
+      setInterval(game, 100);
+    };
+
+    function game() {
+      px += xv; py += yv;
+      if(px<0) px=tc-1; if(px>tc-1) px=0;
+      if(py<0) py=tc-1; if(py>tc-1) py=0;
+
+      ctx.fillStyle='#000';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      ctx.fillStyle='#10b981';
+      for(let i=0; i<trail.length; i++) {
+        ctx.fillRect(trail[i].x*gs, trail[i].y*gs, gs-2, gs-2);
+        if(trail[i].x==px && trail[i].y==py) tail = 5;
+      }
+      trail.push({x:px, y:py});
+      while(trail.length > tail) trail.shift();
+
+      if(ax==px && ay==py) {
+        tail++; score += 10;
+        document.getElementById('score').innerText = score;
+        ax = Math.floor(Math.random()*tc);
+        ay = Math.floor(Math.random()*tc);
+      }
+      ctx.fillStyle='#ff0055';
+      ctx.fillRect(ax*gs, ay*gs, gs-2, gs-2);
+    }
+
+    function keyPush(e) {
+      if(e.keyCode==37 && xv!=1) { xv=-1; yv=0; }
+      if(e.keyCode==38 && yv!=1) { xv=0; yv=-1; }
+      if(e.keyCode==39 && xv!=-1) { xv=1; yv=0; }
+      if(e.keyCode==40 && yv!=-1) { xv=0; yv=1; }
+    }
+  <\/script>
+</body>
+</html>`,
+
+      // 🐣 FLAPPY SQUARE PHYSICS
+      flappy_square: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin:0; background:#0f172a; color:#fff; text-align:center; font-family:sans-serif; overflow:hidden; }
+    canvas { background:#1e293b; display:block; margin:20px auto; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <h2>🐣 Flappy Jump! Click or Press Space</h2>
+  <canvas id="c" width="320" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    let bird = { y: 200, v: 0, g: 0.5 };
+    let pipe = { x: 320, top: 120, gap: 100 };
+    let score = 0;
+
+    function jump() { bird.v = -7; }
+    window.onclick = jump;
+    window.onkeydown = (e) => { if(e.code==='Space') jump(); };
+
+    function loop() {
+      bird.v += bird.g;
+      bird.y += bird.v;
+      pipe.x -= 3;
+
+      if(pipe.x < -50) {
+        pipe.x = 320;
+        pipe.top = Math.random() * 200 + 50;
+        score++;
+      }
+
+      if(bird.y > 400 || bird.y < 0) bird.y = 200; // Reset
+
+      ctx.clearRect(0,0,320,400);
+
+      // Bird
+      ctx.fillStyle = '#ffb703';
+      ctx.fillRect(50, bird.y, 20, 20);
+
+      // Pipes
+      ctx.fillStyle = '#10b981';
+      ctx.fillRect(pipe.x, 0, 40, pipe.top);
+      ctx.fillRect(pipe.x, pipe.top + pipe.gap, 40, 400);
+
+      // Score
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px sans-serif';
+      ctx.fillText('Score: ' + score, 10, 30);
+
+      requestAnimationFrame(loop);
+    }
+    loop();
+  <\/script>
+</body>
+</html>`,
+
+      // 🧱 BRICK BREAKER ARCADE
+      brick_breaker: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background:#0d1117; color:#fff; text-align:center; font-family:sans-serif; margin:0; }
+    canvas { background:#161b22; display:block; margin:10px auto; border:2px solid #30363d; border-radius:6px; }
+  </style>
+</head>
+<body>
+  <h2>🧱 Brick Breaker</h2>
+  <canvas id="bCanvas" width="360" height="320"></canvas>
+  <script>
+    const canvas = document.getElementById('bCanvas');
+    const ctx = canvas.getContext('2d');
+    let x = canvas.width/2, y = canvas.height-30, dx = 2, dy = -2, ballRadius = 8;
+    let paddleWidth = 75, paddleX = (canvas.width-paddleWidth)/2;
+    
+    document.addEventListener("mousemove", (e) => {
+      let relativeX = e.clientX - canvas.offsetLeft;
+      if(relativeX > 0 && relativeX < canvas.width) paddleX = relativeX - paddleWidth/2;
+    });
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#00f0ff";
+      ctx.beginPath(); ctx.arc(x, y, ballRadius, 0, Math.PI*2); ctx.fill();
+      
+      ctx.fillStyle = "#ff0055";
+      ctx.fillRect(paddleX, canvas.height-12, paddleWidth, 10);
+
+      if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) dx = -dx;
+      if(y + dy < ballRadius) dy = -dy;
+      else if(y + dy > canvas.height-ballRadius) {
+        if(x > paddleX && x < paddleX + paddleWidth) dy = -dy;
+        else { x = canvas.width/2; y = canvas.height-30; dy = -2; }
+      }
+
+      x += dx; y += dy;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  <\/script>
+</body>
+</html>`,
+
+      // 🎯 TARGET CLICKER TURBO
+      target_clicker: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background:#0f051d; color:#fff; font-family:sans-serif; text-align:center; margin:0; user-select:none; }
+    #target { width:60px; height:60px; background:#ff0055; border-radius:50%; position:absolute; cursor:pointer; box-shadow:0 0 15px #ff0055; }
+  </style>
+</head>
+<body>
+  <h2 style="margin-top:15px">🎯 Target Score: <span id="score">0</span></h2>
+  <div id="target" onclick="hitTarget()"></div>
+  <script>
+    let score = 0;
+    const target = document.getElementById('target');
+
+    function moveTarget() {
+      const x = Math.random() * (window.innerWidth - 80);
+      const y = Math.random() * (window.innerHeight - 150) + 60;
+      target.style.left = x + 'px';
+      target.style.top = y + 'px';
+    }
+
+    function hitTarget() {
+      score += 10;
+      document.getElementById('score').innerText = score;
+      moveTarget();
+    }
+    moveTarget();
+  <\/script>
+</body>
+</html>`,
+
+      // 🎹 SYNTH SOUND SYNTHESIZER
+      synth_keyboard: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background:#1e1b4b; color:#fff; font-family:sans-serif; text-align:center; padding:20px; }
+    .key { display:inline-block; width:50px; height:140px; background:white; color:black; margin:4px; border-radius:0 0 8px 8px; cursor:pointer; font-weight:bold; line-height:220px; }
+    .key:hover { background:#e0e7ff; }
+  </style>
+</head>
+<body>
+  <h2>🎹 Web Audio Synth Keyboard</h2>
+  <p>Click keys to make sound frequencies!</p>
+  <div>
+    <div class="key" onclick="playTone(261.63)">C</div>
+    <div class="key" onclick="playTone(293.66)">D</div>
+    <div class="key" onclick="playTone(329.63)">E</div>
+    <div class="key" onclick="playTone(349.23)">F</div>
+    <div class="key" onclick="playTone(392.00)">G</div>
+    <div class="key" onclick="playTone(440.00)">A</div>
+    <div class="key" onclick="playTone(493.88)">B</div>
+  </div>
+  <script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    function playTone(freq) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.8);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.8);
+    }
+  <\/script>
+</body>
+</html>`,
+
+      // 🌀 PARTICLE PHYSICS SANDBOX
+      particle_sandbox: `<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { margin:0; background:#000; overflow:hidden; }
+    canvas { display:block; }
+  </style>
+</head>
+<body>
+  <canvas id="pc"></canvas>
+  <script>
+    const canvas = document.getElementById('pc');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let particles = [];
+    for(let i=0; i<150; i++) {
+      particles.push({
+        x: Math.random()*canvas.width,
+        y: Math.random()*canvas.height,
+        vx: (Math.random()-0.5)*3,
+        vy: (Math.random()-0.5)*3,
+        color: 'hsl(' + Math.random()*360 + ', 100%, 60%)'
+      });
+    }
+
+    function animate() {
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+        if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+
+        ctx.fillStyle = p.color;
+        ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2); ctx.fill();
+      });
+      requestAnimationFrame(animate);
+    }
+    animate();
+  <\/script>
+</body>
+</html>`
+    };
+
+    // LOCAL STORAGE INITIALIZATION & FILE MANAGERS
+    window.onload = function() {
+      const savedData = localStorage.getItem('studio_ultra_files');
+      if (savedData) {
+        try {
+          gameFiles = JSON.parse(savedData);
+        } catch(e) {
+          gameFiles = {};
+        }
+      }
+
+      // If no saved files, create defaults
+      if (Object.keys(gameFiles).length === 0) {
+        gameFiles['FILE 1'] = gameTemplates.canvas_painter;
+        gameFiles['FILE 2'] = gameTemplates.space_defender;
+        gameFiles['FILE 3'] = gameTemplates.target_clicker;
+        fileCounter = 4;
+      } else {
+        fileCounter = Object.keys(gameFiles).length + 1;
+      }
+
+      renderFileList();
+      
+      // Load initial file
+      const firstFile = Object.keys(gameFiles)[0];
+      if (firstFile) loadFile(firstFile);
+
+      // Realtime line counter & edit watcher
+      const editor = document.getElementById('code-editor');
+      editor.addEventListener('input', () => {
+        markUnsaved();
+        updateLineCount();
+        updatePreviewLive();
+      });
+
+      setupDragAndDrop();
+      saveToLocalStorage();
+    };
+
+    function saveToLocalStorage() {
+      localStorage.setItem('studio_ultra_files', JSON.stringify(gameFiles));
+    }
+
+    function renderFileList() {
+      const listEl = document.getElementById('file-list');
+      listEl.innerHTML = '';
+      const keys = Object.keys(gameFiles);
+      
+      document.getElementById('file-count-tag').innerText = `${keys.length} Files`;
+
+      keys.forEach(fileName => {
+        const card = document.createElement('div');
+        card.className = `file-card bg-slate-950 p-2.5 rounded-lg cursor-pointer flex items-center justify-between text-xs ${currentActiveFile === fileName ? 'active' : ''}`;
+        card.draggable = true;
+
+        card.innerHTML = `
+          <div class="flex items-center gap-2 font-medium truncate">
+            <i class="fa-solid fa-file-code ${currentActiveFile === fileName ? 'text-emerald-400' : 'text-slate-500'}"></i>
+            <span class="truncate">${fileName}</span>
+          </div>
+          <button onclick="deleteFile(event, '${fileName}')" class="text-slate-600 hover:text-rose-400 p-1 rounded transition" title="Delete File">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        `;
+
+        card.onclick = () => loadFile(fileName);
+        
+        // Dragging File logic
+        card.ondragstart = (e) => {
+          e.dataTransfer.setData('text/plain', fileName);
+        };
+
+        listEl.appendChild(card);
+      });
+    }
+
+    function createNewFile() {
+      const newName = 'FILE ' + fileCounter++;
+      gameFiles[newName] = `<h2>New Game (${newName})</h2>\n<p>Start editing code in the editor!</p>`;
+      saveToLocalStorage();
+      renderFileList();
+      loadFile(newName);
+      showToast(`Created ${newName}`, 'success');
+    }
+
+    function loadFile(fileName) {
+      if (gameFiles[fileName] === undefined) return;
+      currentActiveFile = fileName;
+      const code = gameFiles[fileName];
+      
+      document.getElementById('code-editor').value = code;
+      document.getElementById('active-file-title').innerText = fileName;
+      
+      renderFileList();
+      updateLineCount();
+      updatePreviewLive();
+      markSaved();
+    }
+
+    function deleteFile(event, fileName) {
+      event.stopPropagation();
+      if (Object.keys(gameFiles).length <= 1) {
+        showToast('Cannot delete the only remaining file!', 'error');
+        return;
+      }
+      
+      delete gameFiles[fileName];
+      saveToLocalStorage();
+      
+      if (currentActiveFile === fileName) {
+        loadFile(Object.keys(gameFiles)[0]);
+      } else {
+        renderFileList();
+      }
+      showToast(`Deleted ${fileName}`, 'info');
+    }
+
+    function saveActiveFile() {
+      if (!currentActiveFile) return;
+      const code = document.getElementById('code-editor').value;
+      gameFiles[currentActiveFile] = code;
+      saveToLocalStorage();
+      markSaved();
+      showToast(`Saved ${currentActiveFile} successfully!`, 'success');
+    }
+
+    function loadPresetGame(key) {
+      if (!key || !gameTemplates[key]) return;
+      document.getElementById('code-editor').value = gameTemplates[key];
+      markUnsaved();
+      updatePreviewLive();
+      updateLineCount();
+      showToast(`Loaded ${key.replace('_',' ').toUpperCase()} preset!`, 'info');
+      document.getElementById('preset-selector').value = '';
+    }
+
+    // COLOR PICKER & SNIPPET INJECTOR
+    function updateColorPickerHex(val) {
+      document.getElementById('color-hex-text').value = val;
+    }
+
+    function selectPresetColor(hex) {
+      document.getElementById('studio-color-picker').value = hex;
+      document.getElementById('color-hex-text').value = hex;
+    }
+
+    function insertColorToEditor() {
+      const hex = document.getElementById('color-hex-text').value;
+      insertAtCursor(hex);
+      showToast(`Inserted color ${hex}`, 'info');
+    }
+
+    function injectSnippet(type) {
+      let snippet = '';
+      if (type === 'score') {
+        snippet = `\n<!-- Score System -->\n<div style="font-size:20px; font-weight:bold; color:#00f0ff;">Score: <span id="scoreVal">0</span></div>\n<script>\n  let currentScore = 0;\n  function addPoint() {\n    currentScore += 10;\n    document.getElementById('scoreVal').innerText = currentScore;\n  }\n<\/script>\n`;
+      } else if (type === 'timer') {
+        snippet = `\n<!-- Countdown Timer -->\n<div style="font-size:18px; color:#ffb703;">Time Left: <span id="timerVal">30</span>s</div>\n<script>\n  let timeLeft = 30;\n  let timer = setInterval(() => {\n    timeLeft--;\n    document.getElementById('timerVal').innerText = timeLeft;\n    if(timeLeft <= 0) { clearInterval(timer); alert('Time Up!'); }\n  }, 1000);\n<\/script>\n`;
+      } else if (type === 'sound') {
+        snippet = `\n<!-- Arcade Beep Sound -->\n<script>\n  function playArcadeBeep() {\n    const ctx = new (window.AudioContext || window.webkitAudioContext)();\n    const osc = ctx.createOscillator();\n    osc.frequency.setValueAtTime(440, ctx.currentTime);\n    osc.connect(ctx.destination);\n    osc.start();\n    osc.stop(ctx.currentTime + 0.15);\n  }\n<\/script>\n<button onclick="playArcadeBeep()">🔊 Play Beep</button>\n`;
+      } else if (type === 'rainbowBg') {
+        snippet = `\n<!-- Rainbow Animated Background -->\n<style>\n  body {\n    background: linear-gradient(45deg, #ff0055, #7b2cbf, #00f0ff, #00f5d4);\n    background-size: 400% 400%;\n    animation: rainbowBG 8s ease infinite;\n  }\n  @keyframes rainbowBG {\n    0% { background-position: 0% 50%; }\n    50% { background-position: 100% 50%; }\n    100% { background-position: 0% 50%; }\n  }\n</style>\n`;
+      } else if (type === 'touchPad') {
+        snippet = `\n<!-- Touch D-Pad Overlay -->\n<div style="position:fixed; bottom:20px; left:20px; display:grid; grid-template-columns:repeat(3, 40px); gap:5px;">\n  <div></div><button style="padding:10px;">⬆️</button><div></div>\n  <button style="padding:10px;">⬅️</button><button style="padding:10px;">⬇️</button><button style="padding:10px;">➡️</button>\n</div>\n`;
+      }
+
+      insertAtCursor(snippet);
+      showToast('Inserted snippet into code editor!', 'success');
+    }
+
+    function insertAtCursor(text) {
+      const textarea = document.getElementById('code-editor');
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const val = textarea.value;
+      textarea.value = val.substring(0, start) + text + val.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + text.length;
+      textarea.focus();
+      markUnsaved();
+      updatePreviewLive();
+      updateLineCount();
+    }
+
+    // VIEW MODES & PREVIEW ENGINE
+    function setViewMode(mode) {
+      const editor = document.getElementById('editor-panel');
+      const preview = document.getElementById('preview-panel');
+      
+      const btnSplit = document.getElementById('view-split');
+      const btnCode = document.getElementById('view-code');
+      const btnPreview = document.getElementById('view-preview');
+
+      // Reset classes
+      [btnSplit, btnCode, btnPreview].forEach(b => {
+        b.className = "px-3 py-1.5 rounded-md font-semibold text-slate-400 hover:text-white transition flex items-center gap-1.5";
+      });
+
+      if (mode === 'split') {
+        editor.style.display = 'flex';
+        preview.style.display = 'flex';
+        btnSplit.className = "px-3 py-1.5 rounded-md font-semibold text-white bg-indigo-600 transition flex items-center gap-1.5";
+      } else if (mode === 'code') {
+        editor.style.display = 'flex';
+        preview.style.display = 'none';
+        btnCode.className = "px-3 py-1.5 rounded-md font-semibold text-white bg-indigo-600 transition flex items-center gap-1.5";
+      } else if (mode === 'preview') {
+        editor.style.display = 'none';
+        preview.style.display = 'flex';
+        btnPreview.className = "px-3 py-1.5 rounded-md font-semibold text-white bg-indigo-600 transition flex items-center gap-1.5";
+      }
+    }
+
+    function updatePreviewLive() {
+      const iframe = document.getElementById('preview-frame');
+      const code = document.getElementById('code-editor').value;
+      iframe.srcdoc = code;
+    }
+
+    function reloadPreviewFrame() {
+      updatePreviewLive();
+      showToast('Game preview restarted!', 'info');
+    }
+
+    function updateLineCount() {
+      const code = document.getElementById('code-editor').value;
+      const lines = code.split('\n').length;
+      document.getElementById('editor-line-count').innerText = `Lines: ${lines}`;
+    }
+
+    function clearEditorCode() {
+      document.getElementById('code-editor').value = '';
+      markUnsaved();
+      updatePreviewLive();
+      updateLineCount();
+    }
+
+    function markUnsaved() {
+      hasUnsavedChanges = true;
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.className = "unsaved-glow bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2 rounded-lg flex items-center gap-2 transition cursor-pointer";
+      
+      const statusBadge = document.getElementById('save-status-badge');
+      statusBadge.className = "bg-amber-500/10 text-amber-400 text-xs px-2 py-0.5 rounded border border-amber-500/30 flex items-center gap-1";
+      statusBadge.innerHTML = '<i class="fa-solid fa-circle-exclamation text-[10px]"></i> Unsaved Edits';
+    }
+
+    function markSaved() {
+      hasUnsavedChanges = false;
+      const saveBtn = document.getElementById('save-btn');
+      saveBtn.className = "glow-save-btn bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs px-4 py-2 rounded-lg flex items-center gap-2 transition cursor-pointer";
+
+      const statusBadge = document.getElementById('save-status-badge');
+      statusBadge.className = "bg-emerald-500/10 text-emerald-400 text-xs px-2 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1";
+      statusBadge.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i> Saved';
+    }
+
+    // DRAG AND DROP HANDLERS FOR FILE MANAGER
+    function setupDragAndDrop() {
+      const dropZone = document.getElementById('preview-panel');
+      const overlay = document.getElementById('drop-overlay');
+
+      dropZone.ondragover = (e) => {
+        e.preventDefault();
+        overlay.classList.remove('hidden');
+      };
+
+      dropZone.ondragleave = (e) => {
+        if (e.relatedTarget && dropZone.contains(e.relatedTarget)) return;
+        overlay.classList.add('hidden');
+      };
+
+      dropZone.ondrop = (e) => {
+        e.preventDefault();
+        overlay.classList.add('hidden');
+        const fileName = e.dataTransfer.getData('text/plain');
+        if (fileName && gameFiles[fileName] !== undefined) {
+          loadFile(fileName);
+          showToast(`Loaded ${fileName} via Drag & Drop!`, 'success');
+        }
+      };
+    }
+
+    // EXPORT FILE
+    function exportCurrentFile() {
+      const code = document.getElementById('code-editor').value;
+      if (!code) return showToast('No code to export!', 'error');
+
+      const blob = new Blob([code], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${currentActiveFile || 'game'}.html`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast(`Exported ${currentActiveFile}.html!`, 'success');
+    }
+
+    // TOAST NOTIFICATIONS
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      let bg = 'bg-slate-800 border-slate-700 text-slate-200';
+      let icon = 'fa-info-circle text-blue-400';
+
+      if (type === 'success') {
+        bg = 'bg-emerald-950/90 border-emerald-800 text-emerald-200';
+        icon = 'fa-circle-check text-emerald-400';
+      } else if (type === 'error') {
+        bg = 'bg-rose-950/90 border-rose-800 text-rose-200';
+        icon = 'fa-triangle-exclamation text-rose-400';
+      }
+
+      toast.className = `toast ${bg} border p-3 rounded-lg shadow-xl text-xs flex items-center gap-2.5 mb-2 font-medium backdrop-blur-sm`;
+      toast.innerHTML = `<i class="fa-solid ${icon} text-sm"></i> <span>${message}</span>`;
+
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+      }, 2500);
+    }
+  </script>
+</body>
+</html>
